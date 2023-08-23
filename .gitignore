@@ -30,3 +30,4 @@ dist-ssr
 script/files
 *.db
 *.csv
+script/entities.json
