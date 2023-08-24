@@ -1,7 +1,7 @@
 import WBK, { SimplifiedItem } from 'wikibase-sdk';
 import fs from 'fs';
 import dotenv from 'dotenv';
-import { MajorResult, TilasSearchResponse } from './types.mjs';
+import { CatsList, MajorResult, TilasSearchResponse } from './types.mjs';
 import wikibaseEdit from 'wikibase-edit';
 import { getCategoryQids, search } from './util.mjs';
 import { FILE_MAJOR_RESULTS, absentQids } from './const.mjs';
@@ -23,12 +23,32 @@ const wbEdit = wikibaseEdit({
   maxlag: 10,
 });
 
-const denyList = [
-  'Category:Medalists_at_the_1908_Summer_Olympics',
-  'Category:Medalists_at_the_1904_Summer_Olympics',
-  'Category:Medalists_at_the_1900_Summer_Olympics',
-  'Category:Medalists_at_the_1896_Summer_Olympics',
-  'Category:Medalists at the 1906 Intercalated Games',
+const allowCats = [
+  'Category:Medalists at the 1912 Summer Olympics',
+  'Category:Medalists at the 1920 Summer Olympics',
+  'Category:Medalists at the 1924 Summer Olympics',
+  'Category:Medalists at the 1928 Summer Olympics',
+  'Category:Medalists at the 1932 Summer Olympics',
+  'Category:Medalists at the 1936 Summer Olympics',
+  'Category:Medalists at the 1948 Summer Olympics',
+  'Category:Medalists at the 1952 Summer Olympics',
+  'Category:Medalists at the 1956 Summer Olympics',
+  'Category:Medalists at the 1960 Summer Olympics',
+  'Category:Medalists at the 1964 Summer Olympics',
+  'Category:Medalists at the 1968 Summer Olympics',
+  'Category:Medalists at the 1972 Summer Olympics',
+  'Category:Medalists at the 1976 Summer Olympics',
+  'Category:Medalists at the 1980 Summer Olympics',
+  'Category:Medalists at the 1984 Summer Olympics',
+  'Category:Medalists at the 1988 Summer Olympics',
+  'Category:Medalists at the 1992 Summer Olympics',
+  'Category:Medalists at the 1996 Summer Olympics',
+  'Category:Medalists at the 2000 Summer Olympics',
+  'Category:Medalists at the 2004 Summer Olympics',
+  'Category:Medalists at the 2008 Summer Olympics',
+  'Category:Medalists at the 2012 Summer Olympics',
+  'Category:Medalists at the 2016 Summer Olympics',
+  'Category:Medalists at the 2020 Summer Olympics',
 ];
 
 const P_TILAS_FEMALE = 'P3882';
@@ -42,6 +62,7 @@ const Q_WHEELCHAIR_RACER = 'Q51536424';
 
 const FILE_ENTITIES = './script/entities.json';
 const FILE_COMPLETED = './script/completedQids.json';
+const FILE_ALLOW_QIDS = './script/allowQids.json';
 
 const wbk = WBK({
   instance: 'https://www.wikidata.org',
@@ -63,9 +84,17 @@ const entities: Record<string, SimplifiedItem> = fs.existsSync(FILE_ENTITIES)
   ? JSON.parse(fs.readFileSync(FILE_ENTITIES, 'utf-8'))
   : await (async () => {
       const entities = {};
-      const denyQids: `Q${number}`[] = [];
-      for (const denyUrl of denyList) denyQids.push(...(await getCategoryQids(denyUrl)));
-      const qids = (await getCategoryQids('Category:Olympic gold medalists for the United States in track and field')).filter((qid) => !denyQids.includes(qid));
+      const allowQids: CatsList = fs.existsSync(FILE_ALLOW_QIDS)
+        ? JSON.parse(fs.readFileSync(FILE_ALLOW_QIDS, 'utf-8'))
+        : await (async () => {
+            const allowQids: CatsList = {};
+            for (const allowCat of allowCats) (allowQids[allowCat] ??= []).push(...(await getCategoryQids(allowCat)));
+            fs.writeFileSync(FILE_ALLOW_QIDS, JSON.stringify(allowQids));
+            return allowQids;
+          })();
+      const qids = (await getCategoryQids('Category:Olympic gold medalists in athletics (track and field)')).filter((qid) =>
+        Object.values(allowQids).flat().includes(qid)
+      );
       console.log(qids.length);
       for (const url of wbk.getManyEntities({ ids: qids })) {
         console.log(url);
@@ -126,7 +155,6 @@ try {
           break;
         }
       }
-      matchingResult ??= allSearchHits.find((hit) => !hit.yearOfBirth);
       if (!matchingResult) {
         const matchingLeg = relayLegs.find((leg) => aliases.includes(leg.name));
         if (matchingLeg) {

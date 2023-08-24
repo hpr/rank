@@ -1,9 +1,10 @@
-import { TilasSearchResponse } from "./types.mjs";
+import { TilasSearchResponse } from './types.mjs';
 
 export const getCategoryQids = async (gcmtitle: string) => {
   const qids: `Q${number}`[] = [];
   let cont: { gcmcontinue?: string } | undefined = {};
   while (cont) {
+    console.log(gcmtitle, cont);
     const params: { [k: string]: string } = {
       action: 'query',
       gcmtitle,

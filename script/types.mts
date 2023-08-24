@@ -1,3 +1,5 @@
+export type CatsList = { [cat: string]: `Q${number}`[] };
+
 export type TilasSearchResponse = {
   athleteId: string;
   name: string;
