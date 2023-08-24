@@ -32,3 +32,4 @@ script/files
 *.csv
 script/entities.json
 script/majorResults.json
+script/errors.json
