@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import { MajorResult, TilasSearchResponse } from './types.mjs';
 import wikibaseEdit from 'wikibase-edit';
 import { getCategoryQids, search } from './util.mjs';
-import { FILE_MAJOR_RESULTS } from './const.mjs';
+import { FILE_MAJOR_RESULTS, absentQids } from './const.mjs';
 dotenv.config();
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
@@ -91,6 +91,7 @@ try {
   for (const entity of entityVals) {
     console.log(`${entityVals.indexOf(entity) + 1} / ${entityVals.length}`);
 
+    if (absentQids.includes(entity.id)) continue;
     if (!entity.claims?.[P_INSTANCE_OF]?.includes(Q_HUMAN)) continue;
     if (entity.claims?.[P_OCCUPATION]?.includes(Q_WHEELCHAIR_RACER)) continue;
     const label = entity.labels?.en;
