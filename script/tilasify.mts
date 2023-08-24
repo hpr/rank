@@ -92,7 +92,7 @@ const entities: Record<string, SimplifiedItem> = fs.existsSync(FILE_ENTITIES)
             fs.writeFileSync(FILE_ALLOW_QIDS, JSON.stringify(allowQids));
             return allowQids;
           })();
-      const qids = (await getCategoryQids('Category:Olympic gold medalists in athletics (track and field)')).filter((qid) =>
+      const qids = (await getCategoryQids('Category:Olympic silver medalists for the United States in track and field')).filter((qid) =>
         Object.values(allowQids).flat().includes(qid)
       );
       console.log(qids.length);
@@ -166,7 +166,12 @@ try {
         }
       }
       if (!matchingResult?.athleteId) {
-        error('no matchingResult', label, entity.id, allSearchHits.length);
+        error(
+          'no matchingResult',
+          label,
+          `https://www.wikidata.org/wiki/${entity.id}`,
+          allSearchHits.length === 1 ? `${process.env.PROXY_URL}beta/athletes/${allSearchHits[0].athleteId}` : allSearchHits.length
+        );
         continue;
       }
       const [sex, id] = matchingResult.athleteId.split('/');
@@ -177,7 +182,7 @@ try {
         id: entity.id,
         claims: { [tilasSexedProperty]: { value: id, qualifiers: { [P_SUBJECT_NAMED_AS]: matchingResult.name } } },
         reconciliation: { mode: 'merge' },
-        summary: `adding tilastopaja ID for WC medalist with matching name (${matchingAlias ?? matchingResult.name}) and date of birth (${
+        summary: `adding ${tilasSexedProperty} ID for WC medalist with matching name (${matchingAlias ?? matchingResult.name}) and date of birth (${
           matchingResult.dateOfBirth ?? matchingResult.yearOfBirth ?? dobs[0]
         })`,
       });
