@@ -1,9 +1,12 @@
 import WBK, { SimplifiedItem } from 'wikibase-sdk';
 import fs from 'fs';
 import dotenv from 'dotenv';
-import { TilasSearchResponse } from './types.mjs';
+import { MajorResult, TilasSearchResponse } from './types.mjs';
 import wikibaseEdit from 'wikibase-edit';
+import { getCategoryQids, search } from './util.mjs';
+import { FILE_MAJOR_RESULTS } from './const.mjs';
 dotenv.config();
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 const wbEdit = wikibaseEdit({
   instance: 'https://www.wikidata.org',
@@ -20,7 +23,13 @@ const wbEdit = wikibaseEdit({
   maxlag: 10,
 });
 
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+const denyList = [
+  'Category:Medalists_at_the_1908_Summer_Olympics',
+  'Category:Medalists_at_the_1904_Summer_Olympics',
+  'Category:Medalists_at_the_1900_Summer_Olympics',
+  'Category:Medalists_at_the_1896_Summer_Olympics',
+  'Category:Medalists at the 1906 Intercalated Games',
+];
 
 const P_TILAS_FEMALE = 'P3882';
 const P_TILAS_MALE = 'P3884';
@@ -39,41 +48,24 @@ const wbk = WBK({
   sparqlEndpoint: 'https://query.wikidata.org/sparql',
 });
 
-const search = async (name: string): Promise<TilasSearchResponse[]> => {
-  const resp = await (
-    await fetch(`${process.env.PROXY_URL}api/athletes/search?` + new URLSearchParams({ query: name }), {
-      headers: { authorization: process.env.AUTHORIZATION! },
-    })
-  ).json();
-  return resp.divs?.[0].tables.flatMap((table: { body: TilasSearchResponse }) => table.body) ?? [];
-};
-
 const completedQids: string[] = fs.existsSync(FILE_COMPLETED) ? JSON.parse(fs.readFileSync(FILE_COMPLETED, 'utf-8')) : [];
+const majorResults: { [cid: string]: MajorResult } = JSON.parse(fs.readFileSync(FILE_MAJOR_RESULTS, 'utf-8'));
+const relayLegs = Object.values(majorResults)
+  .flatMap((majorRes) => majorRes.genders ?? [])
+  .flatMap((gen) => gen.agegroups ?? [])
+  .flatMap((age) => age.events ?? [])
+  .flatMap((ev) => ev.rounds ?? [])
+  .flatMap((rnd) => rnd.heats ?? [])
+  .flatMap((ht) => ht.results ?? [])
+  .flatMap((res) => res.relays ?? []);
 
 const entities: Record<string, SimplifiedItem> = fs.existsSync(FILE_ENTITIES)
   ? JSON.parse(fs.readFileSync(FILE_ENTITIES, 'utf-8'))
   : await (async () => {
       const entities = {};
-      const qids: `Q${number}`[] = [];
-      let cont: { gcmcontinue?: string } | undefined = {};
-      while (cont) {
-        const params: { [k: string]: string } = {
-          action: 'query',
-          gcmtitle: 'Category:World_Athletics_Championships_medalists',
-          generator: 'categorymembers',
-          prop: 'pageprops',
-          format: 'json',
-          gcmlimit: 'max',
-        };
-        if (cont?.gcmcontinue) params.gcmcontinue = cont.gcmcontinue;
-        const { query, ...rest } = await (await fetch(`https://en.wikipedia.org/w/api.php?` + new URLSearchParams(params))).json();
-        qids.push(
-          ...Object.values(query.pages as { pageprops: { wikibase_item: `Q${number}` } }[])
-            .map((val) => val.pageprops.wikibase_item)
-            .filter((qid) => !completedQids.includes(qid))
-        );
-        cont = rest.continue;
-      }
+      const denyQids: `Q${number}`[] = [];
+      for (const denyUrl of denyList) denyQids.push(...(await getCategoryQids(denyUrl)));
+      const qids = (await getCategoryQids('Category:Olympic gold medalists for the United States in track and field')).filter((qid) => !denyQids.includes(qid));
       console.log(qids.length);
       for (const url of wbk.getManyEntities({ ids: qids })) {
         console.log(url);
@@ -113,16 +105,17 @@ try {
         continue;
       }
       let matchingAlias: string | undefined;
-      let matchingResult: TilasSearchResponse | undefined;
+      let matchingResult: Partial<TilasSearchResponse> | undefined;
       const aliases = [...new Set([label, ...Object.values(entity.labels ?? {}).flat(), ...Object.values(entity.aliases ?? {}).flat()])].filter(
         (name) => name.match(/\w/) && name.split(' ').length >= 2
       );
+      const allSearchHits: TilasSearchResponse[] = [];
       for (const alias of aliases) {
         console.log('trying', alias, `(${aliases.indexOf(alias) + 1}/${aliases.length})`);
-        const result = (await search(alias)).find((hit) => {
-          if (!hit.dateOfBirth) {
-            return dobs.map((dob) => +dob.split('-')[0]).includes(hit.yearOfBirth);
-          }
+        const searchHits = await search(alias);
+        for (const hit of searchHits) if (!allSearchHits.find((h) => h.athleteId === hit.athleteId)) allSearchHits.push(hit);
+        const result = searchHits.find((hit) => {
+          if (!hit.dateOfBirth) return dobs.map((dob) => +dob.split('-')[0]).includes(hit.yearOfBirth);
           return dobs.includes(hit.dateOfBirth);
         });
         await new Promise((res) => setTimeout(res, 500));
@@ -132,8 +125,19 @@ try {
           break;
         }
       }
+      matchingResult ??= allSearchHits.find((hit) => !hit.yearOfBirth);
       if (!matchingResult) {
-        error('no matchingResult', label, entity.id);
+        const matchingLeg = relayLegs.find((leg) => aliases.includes(leg.name));
+        if (matchingLeg) {
+          console.log('found relay');
+          matchingResult = {
+            name: matchingLeg.name,
+            athleteId: matchingLeg.athleteId,
+          };
+        }
+      }
+      if (!matchingResult?.athleteId) {
+        error('no matchingResult', label, entity.id, allSearchHits.length);
         continue;
       }
       const [sex, id] = matchingResult.athleteId.split('/');
@@ -144,8 +148,8 @@ try {
         id: entity.id,
         claims: { [tilasSexedProperty]: { value: id, qualifiers: { [P_SUBJECT_NAMED_AS]: matchingResult.name } } },
         reconciliation: { mode: 'merge' },
-        summary: `adding tilastopaja ID for WC medalist with matching name (${matchingAlias}) and date of birth (${
-          matchingResult.dateOfBirth ?? matchingResult.yearOfBirth
+        summary: `adding tilastopaja ID for WC medalist with matching name (${matchingAlias ?? matchingResult.name}) and date of birth (${
+          matchingResult.dateOfBirth ?? matchingResult.yearOfBirth ?? dobs[0]
         })`,
       });
       entities[entity.id].claims![tilasSexedProperty] = [id];

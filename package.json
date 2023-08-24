@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --host",
     "tilasify": "tsc --module nodenext --outDir build script/tilasify.mts && echo running... && node build/tilasify.mjs",
+    "fetchMajors": "tsc --module nodenext --outDir build script/fetchMajors.mts && echo running... && node build/fetchMajors.mjs",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",

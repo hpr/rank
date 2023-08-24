@@ -31,3 +31,4 @@ script/files
 *.db
 *.csv
 script/entities.json
+script/majorResults.json
