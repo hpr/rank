@@ -92,7 +92,7 @@ const entities: Record<string, SimplifiedItem> = fs.existsSync(FILE_ENTITIES)
             fs.writeFileSync(FILE_ALLOW_QIDS, JSON.stringify(allowQids));
             return allowQids;
           })();
-      const qids = (await getCategoryQids('Category:Olympic silver medalists in athletics (track and field)')).filter((qid) =>
+      const qids = (await getCategoryQids('Category:Olympic bronze medalists in athletics (track and field)')).filter((qid) =>
         Object.values(allowQids).flat().includes(qid)
       );
       console.log(qids.length);
