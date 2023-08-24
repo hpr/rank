@@ -169,8 +169,10 @@ try {
         error(
           'no matchingResult',
           label,
-          `https://www.wikidata.org/wiki/${entity.id}`,
-          allSearchHits.length === 1 ? `${process.env.PROXY_URL}beta/athletes/${allSearchHits[0].athleteId}` : allSearchHits.length
+          `https://www.wikidata.org/wiki/${entity.id}#${P_DATE_OF_BIRTH}`,
+          ...(allSearchHits.length === 1
+            ? [`${process.env.PROXY_URL}beta/athletes/${allSearchHits[0].athleteId}`, allSearchHits[0].dateOfBirth]
+            : [allSearchHits.length])
         );
         continue;
       }
