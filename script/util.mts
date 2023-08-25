@@ -30,3 +30,17 @@ export const search = async (name: string): Promise<TilasSearchResponse[]> => {
   if (!resp.authorized) throw new Error('not authorized');
   return resp.divs?.[0].tables.flatMap((table: { body: TilasSearchResponse }) => table.body) ?? [];
 };
+
+export const markToSecs = (mark: string) => {
+  if (mark.includes('(')) mark = mark.slice(0, mark.indexOf('(')).trim();
+  mark = mark.replaceAll('h', '').replaceAll('+', '').replaceAll('*', '').trim();
+  const groups = mark.split(':');
+  let res: string | number | undefined = undefined;
+  if (groups.length === 1) res = +mark;
+  if (groups.length === 2) res = +groups[0] * 60 + +groups[1];
+  if (groups.length === 3) res = +groups[0] * 60 * 60 + +groups[1] * 60 + +groups[2];
+  if (typeof res !== 'number') throw 'bad mark';
+  res = String(Math.round(res * 100) / 100);
+  if (res.includes('.')) return res.slice(0, res.lastIndexOf('.') + 3);
+  return res;
+};

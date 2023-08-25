@@ -468,6 +468,11 @@
     aria-hidden "^1.1.3"
     tabbable "^6.0.1"
 
+"@glaivepro/wa-calculator@^0.3.0":
+  version "0.3.0"
+  resolved "https://registry.npmjs.org/@glaivepro/wa-calculator/-/wa-calculator-0.3.0.tgz"
+  integrity sha512-Uh/9mdEnghP97nrqtJSTERBSsBSEay+4lV4xRGhmuqpMo5YL24WRlTmTHOf9A8mp4sE2OQT11eyJa8/8JnMIgg==
+
 "@humanwhocodes/config-array@^0.11.8":
   version "0.11.8"
   resolved "https://registry.npmjs.org/@humanwhocodes/config-array/-/config-array-0.11.8.tgz"

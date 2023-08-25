@@ -16,36 +16,78 @@ export type TilasSearchResponse = {
 
 export type AthleteId = `${'men' | 'women'}/${number}`;
 
+export type TilasResult = {
+  resultIndex: string;
+  name: string;
+  athleteId: AthleteId;
+  records?: string[];
+  country: string;
+  countryFull: string;
+  countryIso2: string;
+  remarks?: string; // DQ IAAF Rule 32.2.a
+  pos: string;
+  result: string;
+  personalBest?: 'PB';
+  reaction?: string;
+  qualified?: 'Q' | 'q';
+  relays?: {
+    athleteId: AthleteId;
+    name: string;
+    leg: string;
+  }[];
+};
+
 export type MajorResult = {
+  authorized: boolean;
+  startDate: string;
+  endDate: string;
+  competitionId: string;
+  competition: 'OG' | 'WC' | string;
+  competitionLong: string; // '29th Olympic Games'
+  venue: string;
+  venueCountry: string;
+  venueCountryFull: string;
+  stadion: string;
   genders: {
+    id: string;
+    title: string;
+    dates: { [d: string]: true };
     agegroups: {
+      id: string;
+      title: string;
+      dates: { [d: string]: true };
       events: {
-        // 4 x 100 = 56000
-        // 4 x 400 = 58000
-        // 4 x 400 Mixed = 58100
         id: string;
         title: string;
+        dates: { [d: string]: true };
         rounds: {
           id: string;
           title: string | null;
+          date: string;
           heats: {
             id: null;
             title: string | null;
-            results: {
-              resultIndex: string;
-              athleteId: AthleteId;
-              country: string;
-              pos: string;
-              result: string;
-              relays?: {
-                athleteId: AthleteId;
-                name: string;
-                leg: string;
-              }[];
-            }[];
+            wind?: string;
+            results: TilasResult[];
           }[];
         }[];
       }[];
     }[];
   }[];
 };
+
+export type GenderedBest = {
+  [resultIndex: string]: {
+    SB: string;
+    SBDate: string;
+    PB: string;
+    PBDate: string;
+  };
+};
+
+export type MeetBests =
+  | {
+      men: GenderedBest;
+      women: GenderedBest;
+    }
+  | [];
