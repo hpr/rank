@@ -1,7 +1,9 @@
 import fs from 'fs';
-import { MeetBests, MajorResult } from './types.mjs';
+import { MeetBests, MajorResult } from './common/types.mjs';
 import dotenv from 'dotenv';
-import { markToSecs } from './util.mjs';
+import { markToSecs } from './common/util.mjs';
+import { WaCalculator } from '@glaivepro/wa-calculator';
+import { evtTitleToDiscipline } from './common/const.mjs';
 dotenv.config();
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
@@ -54,16 +56,32 @@ const wcResults: WcResults = fs.existsSync(FILE_WC_RESULTS)
     })();
 
 const athImprovements: { athleteId: string; name: string; diff: number; percentDiff: number; year: number; event: string; oldPb: string; newPb: string }[] = [];
+
 for (const cid in wcResults) {
-  console.log(cid);
-  if (Array.isArray(wcResults[cid].bests)) continue;
   const year = +wcResults[cid].results.startDate.split('-')[0];
+  console.log(cid, year);
+  if (Array.isArray(wcResults[cid].bests)) continue;
+
   const perfsList = wcResults[cid].results.genders
     .flatMap((gen) => gen.agegroups ?? [])
-    .flatMap((age) => age.events.filter((ev) => ev.title.split(' ').some((word) => word.endsWith('m'))) ?? [])
+    .flatMap((age) => age.events.filter((ev) => evtTitleToDiscipline[ev.title]) ?? [])
     .flatMap((ev) => ev.rounds.map((rnd) => ({ ...rnd, evt: ev.title })) ?? [])
     .flatMap((rnd) => rnd.heats.map((ht) => ({ ...ht, evt: rnd.evt })) ?? [])
-    .flatMap((ht) => ht.results.map((res) => ({ ...res, evt: ht.evt })) ?? []);
+    .flatMap(
+      (ht) =>
+        ht.results
+          .filter((res) => res.result)
+          .map((res) => ({
+            ...res,
+            evt: ht.evt,
+            score: new WaCalculator({
+              edition: '2022',
+              gender: res.athleteId.startsWith('women') ? 'f' : 'm',
+              venueType: 'outdoor',
+              discipline: evtTitleToDiscipline[ht.evt],
+            }).evaluate(+markToSecs(res.result)),
+          })) ?? []
+    );
 
   const athleteToResults = Object.fromEntries(
     [...new Set(perfsList.map((perf) => perf.athleteId))].map((athleteId) => {
@@ -77,16 +95,26 @@ for (const cid in wcResults) {
     const [sex] = athleteId.split('/');
     for (const evt in athleteToResults[athleteId]) {
       const athleteBests = athleteToResults[athleteId][evt].map((res) => wcResults[cid].bests[sex][res.resultIndex]);
-      const [worstBest] = athleteBests.filter((b) => b?.PB).sort((a, b) => +markToSecs(b.PB) - +markToSecs(a.PB));
+      const [worstBest] = athleteBests
+        .filter((b) => b?.PB)
+        .map((best) => ({
+          ...best,
+          pbScore: new WaCalculator({
+            edition: '2022',
+            gender: athleteId.startsWith('women') ? 'f' : 'm',
+            venueType: 'outdoor',
+            discipline: evtTitleToDiscipline[evt],
+          }).evaluate(+markToSecs(best.PB)),
+        }))
+        .sort((a, b) => a.pbScore - b.pbScore);
       if (!worstBest?.PB) continue;
-      const { PB } = worstBest;
-      const pbScore = +markToSecs(PB);
-      const [bestPerf] = athleteToResults[athleteId][evt].filter((res) => res.result).sort((a, b) => +markToSecs(a.result) - +markToSecs(b.result));
+      const { PB, pbScore } = worstBest;
+      const [bestPerf] = athleteToResults[athleteId][evt].sort((a, b) => b.score - a.score);
       if (!bestPerf) continue;
-      const diff = pbScore - +markToSecs(bestPerf.result);
+      const diff = pbScore - bestPerf.score;
       const percentDiff = (diff / pbScore) * 100;
       athImprovements.push({ year, athleteId, name: bestPerf.name, diff, percentDiff, event: bestPerf.evt, oldPb: PB, newPb: bestPerf.result });
     }
   }
 }
-console.log(athImprovements.sort((a, b) => b.percentDiff - a.percentDiff).slice(0, 10));
+console.log(athImprovements.sort((a, b) => a.diff - b.diff).slice(0, 10));

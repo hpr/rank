@@ -1,7 +1,7 @@
 import fs from 'fs';
 import dotenv from 'dotenv';
-import { MajorResult } from './types.mjs';
-import { FILE_MAJOR_RESULTS } from './const.mjs';
+import { MajorResult } from './common/types.mjs';
+import { FILE_MAJOR_RESULTS } from './common/const.mjs';
 dotenv.config();
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 

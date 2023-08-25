@@ -32,6 +32,7 @@ export const search = async (name: string): Promise<TilasSearchResponse[]> => {
 };
 
 export const markToSecs = (mark: string) => {
+  mark = mark.split(' ').filter((word) => [...word].some((c) => '0123456789'.includes(c))).join(' ');
   if (mark.includes('(')) mark = mark.slice(0, mark.indexOf('(')).trim();
   mark = mark.replaceAll('h', '').replaceAll('+', '').replaceAll('*', '').trim();
   const groups = mark.split(':');

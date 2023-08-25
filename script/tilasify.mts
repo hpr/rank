@@ -1,10 +1,10 @@
 import WBK, { SimplifiedItem } from 'wikibase-sdk';
 import fs from 'fs';
 import dotenv from 'dotenv';
-import { CatsList, MajorResult, TilasSearchResponse } from './types.mjs';
+import { CatsList, MajorResult, TilasSearchResponse } from './common/types.mjs';
 import wikibaseEdit from 'wikibase-edit';
-import { getCategoryQids, search } from './util.mjs';
-import { FILE_MAJOR_RESULTS, absentQids } from './const.mjs';
+import { getCategoryQids, search } from './common/util.mjs';
+import { FILE_MAJOR_RESULTS, absentQids } from './common/const.mjs';
 dotenv.config();
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
@@ -60,9 +60,9 @@ const P_SUBJECT_NAMED_AS = 'P1810';
 const Q_HUMAN = 'Q5';
 const Q_WHEELCHAIR_RACER = 'Q51536424';
 
-const FILE_ENTITIES = './script/entities.json';
-const FILE_COMPLETED = './script/completedQids.json';
-const FILE_ALLOW_QIDS = './script/allowQids.json';
+const FILE_ENTITIES = './script/data/entities.json';
+const FILE_COMPLETED = './script/data/completedQids.json';
+const FILE_ALLOW_QIDS = './script/data/allowQids.json';
 
 const wbk = WBK({
   instance: 'https://www.wikidata.org',
