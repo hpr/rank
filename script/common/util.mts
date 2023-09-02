@@ -32,9 +32,12 @@ export const search = async (name: string): Promise<TilasSearchResponse[]> => {
 };
 
 export const markToSecs = (mark: string) => {
-  mark = mark.split(' ').filter((word) => [...word].some((c) => '0123456789'.includes(c))).join(' ');
+  mark = mark
+    .split(' ')
+    .filter((word) => [...word].some((c) => '0123456789'.includes(c)))
+    .join(' ');
   if (mark.includes('(')) mark = mark.slice(0, mark.indexOf('(')).trim();
-  mark = mark.replaceAll('h', '').replaceAll('+', '').replaceAll('*', '').trim();
+  mark = mark.replaceAll('h', '').replaceAll('+', '').replaceAll('*', '').replaceAll('m', '').trim();
   const groups = mark.split(':');
   let res: string | number | undefined = undefined;
   if (groups.length === 1) res = +mark;
@@ -45,3 +48,10 @@ export const markToSecs = (mark: string) => {
   if (res.includes('.')) return res.slice(0, res.lastIndexOf('.') + 3);
   return res;
 };
+
+export const mkError =
+  (errors: any[]) =>
+  (...args: any) => {
+    errors.push(args);
+    console.error(...args);
+  };

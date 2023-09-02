@@ -1,9 +1,9 @@
 import fs from 'fs';
-import { MeetBests, MajorResult } from './common/types.mjs';
+import { MeetBests, MajorResult, WcResults } from './common/types.mjs';
 import dotenv from 'dotenv';
 import { markToSecs } from './common/util.mjs';
 import { WaCalculator } from '@glaivepro/wa-calculator';
-import { evtTitleToDiscipline } from './common/const.mjs';
+import { evtTitleToDiscipline, FILE_WC_RESULTS } from './common/const.mjs';
 dotenv.config();
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
@@ -28,9 +28,8 @@ const wcCids = [
   '12898707',
   '12935526',
   '13002354',
+  '13046619',
 ];
-const FILE_WC_RESULTS = './script/data/wcResults.json';
-type WcResults = { [cid: string]: { results: MajorResult; bests: MeetBests } };
 
 const wcResults: WcResults = fs.existsSync(FILE_WC_RESULTS)
   ? JSON.parse(fs.readFileSync(FILE_WC_RESULTS, 'utf-8'))
@@ -111,10 +110,10 @@ for (const cid in wcResults) {
       const { PB, pbScore } = worstBest;
       const [bestPerf] = athleteToResults[athleteId][evt].sort((a, b) => b.score - a.score);
       if (!bestPerf) continue;
-      const diff = pbScore - bestPerf.score;
+      const diff = bestPerf.score - pbScore;
       const percentDiff = (diff / pbScore) * 100;
       athImprovements.push({ year, athleteId, name: bestPerf.name, diff, percentDiff, event: bestPerf.evt, oldPb: PB, newPb: bestPerf.result });
     }
   }
 }
-console.log(athImprovements.sort((a, b) => a.diff - b.diff).slice(0, 10));
+console.log(athImprovements.sort((a, b) => b.diff - a.diff).slice(0, 50));

@@ -1,10 +1,10 @@
-import WBK, { SimplifiedItem } from 'wikibase-sdk';
+import { SimplifiedItem } from 'wikibase-sdk';
 import fs from 'fs';
 import dotenv from 'dotenv';
 import { CatsList, MajorResult, TilasSearchResponse } from './common/types.mjs';
 import wikibaseEdit from 'wikibase-edit';
-import { getCategoryQids, search } from './common/util.mjs';
-import { FILE_MAJOR_RESULTS, absentQids } from './common/const.mjs';
+import { getCategoryQids, search, mkError } from './common/util.mjs';
+import { FILE_ERRORS, FILE_MAJOR_RESULTS, WD, absentQids, wbk } from './common/const.mjs';
 dotenv.config();
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
@@ -51,23 +51,9 @@ const allowCats = [
   'Category:Medalists at the 2020 Summer Olympics',
 ];
 
-const P_TILAS_FEMALE = 'P3882';
-const P_TILAS_MALE = 'P3884';
-const P_DATE_OF_BIRTH = 'P569';
-const P_OCCUPATION = 'P106';
-const P_INSTANCE_OF = 'P31';
-const P_SUBJECT_NAMED_AS = 'P1810';
-const Q_HUMAN = 'Q5';
-const Q_WHEELCHAIR_RACER = 'Q51536424';
-
 const FILE_ENTITIES = './script/data/entities.json';
 const FILE_COMPLETED = './script/data/completedQids.json';
 const FILE_ALLOW_QIDS = './script/data/allowQids.json';
-
-const wbk = WBK({
-  instance: 'https://www.wikidata.org',
-  sparqlEndpoint: 'https://query.wikidata.org/sparql',
-});
 
 const completedQids: string[] = fs.existsSync(FILE_COMPLETED) ? JSON.parse(fs.readFileSync(FILE_COMPLETED, 'utf-8')) : [];
 const majorResults: { [cid: string]: MajorResult } = JSON.parse(fs.readFileSync(FILE_MAJOR_RESULTS, 'utf-8'));
@@ -104,30 +90,27 @@ const entities: Record<string, SimplifiedItem> = fs.existsSync(FILE_ENTITIES)
 
 // fs.writeFileSync(
 //   FILE_COMPLETED,
-//   JSON.stringify([...completedQids, ...Object.keys(entities).filter((key) => entities[key].claims?.[P_TILAS_MALE] || entities[key].claims?.[P_TILAS_FEMALE])])
+//   JSON.stringify([...completedQids, ...Object.keys(entities).filter((key) => entities[key].claims?.[WD.P_TILAS_MALE] || entities[key].claims?.[WD.P_TILAS_FEMALE])])
 // );
 // if (!0) process.exit();
 
 const errors: any[] = [];
-const error = (...args: any) => {
-  errors.push(args);
-  console.error(...args);
-};
+const error = mkError(errors);
 const entityVals = Object.values(entities);
 try {
   for (const entity of entityVals) {
     console.log(`${entityVals.indexOf(entity) + 1} / ${entityVals.length}`);
 
     if (absentQids.includes(entity.id)) continue;
-    if (!entity.claims?.[P_INSTANCE_OF]?.includes(Q_HUMAN)) continue;
-    if (entity.claims?.[P_OCCUPATION]?.includes(Q_WHEELCHAIR_RACER)) continue;
+    if (!entity.claims?.[WD.P_INSTANCE_OF]?.includes(WD.Q_HUMAN)) continue;
+    if (entity.claims?.[WD.P_OCCUPATION]?.includes(WD.Q_WHEELCHAIR_RACER)) continue;
     const label = entity.labels?.en;
     if (!label) {
       error('no label', entity.id);
       continue;
     }
-    if (!entity.claims?.[P_TILAS_MALE] && !entity.claims?.[P_TILAS_FEMALE]) {
-      const dobs = entity.claims?.[P_DATE_OF_BIRTH]?.map((dob) => String(dob).split('T')[0]) ?? [];
+    if (!entity.claims?.[WD.P_TILAS_MALE] && !entity.claims?.[WD.P_TILAS_FEMALE]) {
+      const dobs = entity.claims?.[WD.P_DATE_OF_BIRTH]?.map((dob) => String(dob).split('T')[0]) ?? [];
       if (!dobs.length) {
         error('no dobs', label, entity.id);
         continue;
@@ -167,7 +150,7 @@ try {
         error(
           'no matchingResult',
           label,
-          `https://www.wikidata.org/wiki/${entity.id}#${P_DATE_OF_BIRTH}`,
+          `https://www.wikidata.org/wiki/${entity.id}#${WD.P_DATE_OF_BIRTH}`,
           ...(allSearchHits.length === 1
             ? [`${process.env.PROXY_URL}beta/athletes/${allSearchHits[0].athleteId}`, allSearchHits[0].dateOfBirth]
             : [allSearchHits.length])
@@ -175,12 +158,12 @@ try {
         continue;
       }
       const [sex, id] = matchingResult.athleteId.split('/');
-      const tilasSexedProperty = sex === 'women' ? P_TILAS_FEMALE : P_TILAS_MALE;
+      const tilasSexedProperty = sex === 'women' ? WD.P_TILAS_FEMALE : WD.P_TILAS_MALE;
       console.log(matchingResult.name, matchingResult.minYear, matchingResult.maxYear, matchingResult.athleteId);
       await wbEdit.entity.edit({
         type: 'item',
         id: entity.id,
-        claims: { [tilasSexedProperty]: { value: id, qualifiers: { [P_SUBJECT_NAMED_AS]: matchingResult.name } } },
+        claims: { [tilasSexedProperty]: { value: id, qualifiers: { [WD.P_SUBJECT_NAMED_AS]: matchingResult.name } } },
         reconciliation: { mode: 'merge' },
         summary: `adding ${tilasSexedProperty} ID for WC medalist with matching name (${matchingAlias ?? matchingResult.name}) and date of birth (${
           matchingResult.dateOfBirth ?? matchingResult.yearOfBirth ?? dobs[0]
@@ -195,8 +178,8 @@ try {
 fs.writeFileSync(
   FILE_COMPLETED,
   JSON.stringify([
-    ...new Set([...completedQids, ...Object.keys(entities).filter((key) => entities[key].claims?.[P_TILAS_MALE] || entities[key].claims?.[P_TILAS_FEMALE])]),
+    ...new Set([...completedQids, ...Object.keys(entities).filter((key) => entities[key].claims?.[WD.P_TILAS_MALE] || entities[key].claims?.[WD.P_TILAS_FEMALE])]),
   ])
 );
 fs.writeFileSync(FILE_ENTITIES, JSON.stringify(entities));
-fs.writeFileSync('./script/errors.json', JSON.stringify(errors));
+fs.writeFileSync(FILE_ERRORS, JSON.stringify(errors));

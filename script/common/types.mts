@@ -1,3 +1,5 @@
+import { EntityId } from 'wikibase-sdk';
+
 export type CatsList = { [cat: string]: `Q${number}`[] };
 
 export type TilasSearchResponse = {
@@ -91,3 +93,32 @@ export type MeetBests =
       women: GenderedBest;
     }
   | [];
+
+export type CirrusResponse = {
+  query: {
+    search: { title: EntityId; snippet: string }[];
+  };
+};
+
+export type WikitextResponse = {
+  query: {
+    pages: {
+      [k: number]: {
+        pageid: number;
+        ns: number;
+        title: string;
+        revisions: {
+          slots: {
+            main: {
+              contentmodel: 'wikitext';
+              contentformat: 'text/x-wiki';
+              '*': string;
+            };
+          };
+        }[];
+      };
+    };
+  };
+};
+
+export type WcResults = { [cid: string]: { results: MajorResult; bests: MeetBests } };

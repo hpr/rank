@@ -1,4 +1,8 @@
+import WBK from 'wikibase-sdk';
+
 export const FILE_MAJOR_RESULTS = './script/data/majorResults.json';
+export const FILE_ERRORS = './script/data/errors.json';
+export const FILE_WC_RESULTS = './script/data/wcResults.json';
 
 export const absentQids = ['Q508060', 'Q437026', 'Q272854', 'Q272846', 'Q1339957'];
 
@@ -35,4 +39,20 @@ export const evtTitleToDiscipline = {
   '4 x 400m Mixed relay': undefined,
   '10,000m Race Walk': undefined,
   '35km Race Walk': '35kmW',
+};
+
+export const wbk = WBK({
+  instance: 'https://www.wikidata.org',
+  sparqlEndpoint: 'https://query.wikidata.org/sparql',
+});
+
+export const WD = {
+  P_TILAS_FEMALE: 'P3882',
+  P_TILAS_MALE: 'P3884',
+  P_DATE_OF_BIRTH: 'P569',
+  P_OCCUPATION: 'P106',
+  P_INSTANCE_OF: 'P31',
+  P_SUBJECT_NAMED_AS: 'P1810',
+  Q_HUMAN: 'Q5',
+  Q_WHEELCHAIR_RACER: 'Q51536424',
 };
